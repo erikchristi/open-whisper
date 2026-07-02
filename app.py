@@ -108,8 +108,7 @@ class App:
             return
         self.state = "recording"
         self.tray.set_state("recording")
-        hint = "loslassen zum Stoppen" if self.record_source == "ptt" else f"{self.cfg['hotkey_toggle'].upper()} zum Stoppen"
-        self.overlay.show(f"Aufnahme … ({hint})", "record")
+        self.overlay.show_recording()
         self._vu_tick()
 
     def _vu_tick(self):
@@ -117,7 +116,7 @@ class App:
         if self.state != "recording":
             return
         self.overlay.set_level(self.recorder.level)
-        self.root.after(80, self._vu_tick)
+        self.root.after(50, self._vu_tick)
 
     def _stop_and_transcribe(self):
         if self.state != "recording":
@@ -131,9 +130,9 @@ class App:
             return
         self.state = "transcribing"
         if self.transcriber.ready.is_set():
-            self.overlay.show("Transkribiere …", "busy")
+            self.overlay.show_busy("Transkribiere")
         else:
-            self.overlay.show("Modell lädt noch – Transkription folgt …", "busy")
+            self.overlay.show_busy("Modell lädt noch")
         threading.Thread(target=self._worker, args=(audio,), daemon=True).start()
 
     def _worker(self, audio):
@@ -152,7 +151,7 @@ class App:
         if error:
             self.overlay.flash(f"Fehler: {error}", "error", 3500)
         elif text:
-            self.overlay.flash("✓ Eingefügt", "ok", 1000)
+            self.overlay.flash("Eingefügt", "ok", 1000)
         else:
             self.overlay.flash("Nichts erkannt", "info", 1500)
 
