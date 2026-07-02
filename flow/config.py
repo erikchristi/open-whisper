@@ -22,6 +22,7 @@ DEFAULTS = {
     "input_device": None,
     "paste_method": "clipboard",
     "max_seconds": 120,
+    "pre_roll_seconds": 0.4,
     "beam_size": 5,
     "initial_prompt": "",
 }

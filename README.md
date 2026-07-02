@@ -17,6 +17,12 @@ Ein kleines Overlay unten in der Bildschirmmitte zeigt den Status
 (● Aufnahme / Transkribiere / ✓ Eingefügt). Im System-Tray sitzt ein Mikrofon-Icon
 mit Status und „Beenden“.
 
+**Hinweis:** Der Mikrofon-Stream bleibt dauerhaft offen (der Windows-Mikrofon-Indikator
+leuchtet, solange die App läuft). Das ist Absicht: nur so startet die Aufnahme ohne
+Verzögerung, und ein Ringpuffer von 0,4 s sorgt dafür, dass auch Wörter erfasst werden,
+die minimal vor dem Tastendruck beginnen. Außerhalb einer Aufnahme wird nichts
+gespeichert — der Puffer wird laufend überschrieben und verlässt nie den Arbeitsspeicher.
+
 ## Start
 
 ```
@@ -57,15 +63,15 @@ alles offline.
 | `input_device` | `null` | Mikrofon-Index (`null` = Standardmikrofon; Liste: `python -m sounddevice`) |
 | `paste_method` | `"clipboard"` | `clipboard` (Strg+V, Zwischenablage wird wiederhergestellt) oder `type` (zeichenweise tippen) |
 | `max_seconds` | `120` | Maximale Aufnahmedauer, danach wird automatisch transkribiert |
+| `pre_roll_seconds` | `0.4` | Vorlauf aus dem Ringpuffer, der jeder Aufnahme vorangestellt wird |
 | `initial_prompt` | `""` | Optionaler Kontext-Prompt (z. B. Fachbegriffe, Namen) |
 
-## Test ohne Mikrofon
+## Tests ohne Mikrofon
 
 ```
-python test_pipeline.py
+python test_pipeline.py     (TTS-Audio erzeugen → transkribieren → Ergebnis prüfen)
+python test_recorder.py     (Pre-Roll, Ringpuffer und Zeitlimit des Recorders)
 ```
-Erzeugt per Windows-TTS ein deutsches Test-WAV, transkribiert es über dieselbe
-Pipeline wie die App und prüft das Ergebnis.
 
 ## Fehlersuche
 

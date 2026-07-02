@@ -43,6 +43,7 @@ class App:
             sample_rate=self.cfg["sample_rate"],
             input_device=self.cfg["input_device"],
             max_seconds=self.cfg["max_seconds"],
+            pre_roll_seconds=self.cfg["pre_roll_seconds"],
             on_limit=lambda: self.ui(self._stop_and_transcribe),
         )
         self.transcriber = Transcriber(
@@ -77,6 +78,9 @@ class App:
     # ---- Zustandsmaschine ----
 
     def _ptt_down(self):
+        if self.state == "transcribing":
+            self.overlay.flash("Noch beschäftigt – gleich nochmal drücken", "busy", 1200)
+            return
         if self.state != "idle":
             return
         self.record_source = "ptt"
@@ -89,6 +93,8 @@ class App:
     def _toggle(self):
         if self.state == "recording":
             self._stop_and_transcribe()
+        elif self.state == "transcribing":
+            self.overlay.flash("Noch beschäftigt – gleich nochmal drücken", "busy", 1200)
         elif self.state == "idle":
             self.record_source = "toggle"
             self._start_recording()
@@ -163,15 +169,19 @@ class App:
         self.hotkeys.register()
         self.tray.start()
         self.transcriber.load_async()
-        self.overlay.flash("Lokales Diktat startet – Modell lädt …", "info", 2500)
+        try:
+            self.recorder.open()
+            self.overlay.flash("Lokales Diktat startet – Modell lädt …", "info", 2500)
+        except Exception as exc:
+            log.exception("Mikrofon-Stream konnte nicht geöffnet werden")
+            self.overlay.flash(f"Mikrofon-Fehler: {exc}", "error", 4000)
         self._poll_queue()
         self.root.mainloop()
 
     def quit(self):
         log.info("Beende App")
         try:
-            if self.recorder.is_recording:
-                self.recorder.stop()
+            self.recorder.close()
         except Exception:
             pass
         try:
