@@ -28,6 +28,14 @@ DEFAULTS = {
 }
 
 
+def save_config(cfg, path=None):
+    path = Path(path) if path else CONFIG_PATH
+    data = {k: cfg[k] for k in DEFAULTS if k in cfg}
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+
+
 def load_config(path=None):
     path = Path(path) if path else CONFIG_PATH
     cfg = dict(DEFAULTS)

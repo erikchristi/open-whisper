@@ -62,7 +62,7 @@ alles offline.
 | `language` | `"de"` | Diktatsprache (fest, kein Auto-Detect) |
 | `device` | `"auto"` | `auto` (CUDA, sonst CPU), `cuda` oder `cpu` |
 | `model_gpu` / `model_cpu` | `large-v3-turbo` / `small` | Whisper-Modell je Gerät |
-| `input_device` | `null` | Mikrofon-Index (`null` = Standardmikrofon; Liste: `python -m sounddevice`) |
+| `input_device` | `null` | Mikrofon: `null` = automatisch, Gerätename (Text) oder Index. Am einfachsten per Rechtsklick aufs Tray-Icon → „Mikrofon“ wählen — die Wahl wird hier gespeichert |
 | `paste_method` | `"clipboard"` | `clipboard` (Strg+V, Zwischenablage wird wiederhergestellt) oder `type` (zeichenweise tippen) |
 | `max_seconds` | `120` | Maximale Aufnahmedauer, danach wird automatisch transkribiert |
 | `pre_roll_seconds` | `0.4` | Vorlauf aus dem Ringpuffer, der jeder Aufnahme vorangestellt wird |
