@@ -14,8 +14,10 @@ keine Daten verlassen den Rechner.
 | **F9** | Toggle: einmal drücken startet die Aufnahme, erneut drücken stoppt sie (für längere Diktate) |
 
 Ein kleines Overlay unten in der Bildschirmmitte zeigt den Status
-(● Aufnahme / Transkribiere / ✓ Eingefügt). Im System-Tray sitzt ein Mikrofon-Icon
-mit Status und „Beenden“.
+(● Aufnahme / Transkribiere / ✓ Eingefügt). Während der Aufnahme läuft dort ein
+**VU-Meter** mit — schlagen die Balken beim Sprechen aus, kommt dein Mikrofon
+nachweislich in der App an. Im System-Tray sitzt ein Mikrofon-Icon mit Status
+und „Beenden“.
 
 **Hinweis:** Der Mikrofon-Stream bleibt dauerhaft offen (der Windows-Mikrofon-Indikator
 leuchtet, solange die App läuft). Das ist Absicht: nur so startet die Aufnahme ohne
@@ -79,7 +81,10 @@ python test_recorder.py     (Pre-Roll, Ringpuffer und Zeitlimit des Recorders)
 - **Kein Text erscheint**: Manche Apps mit Admin-Rechten empfangen keine Eingaben von
   normalen Prozessen — die App dann ebenfalls „Als Administrator ausführen“.
 - **Falsches Mikrofon**: `python -m sounddevice` listet alle Geräte; Index in
-  `config.json` unter `input_device` eintragen.
+  `config.json` unter `input_device` eintragen. Ohne Angabe wählt die App automatisch
+  den WASAPI-Standardeingang mit nativer Abtastrate und prüft per Liveness-Probe, dass
+  wirklich Daten fließen (`app.log`: „Mikrofon-Stream aktiv: …“). Schlägt das VU-Meter
+  bei Aufnahme nicht aus, greift die App auf das falsche Gerät zu.
 - **GPU wird nicht genutzt**: `app.log` prüfen („Modell bereit: … auf cuda/cpu“).
   Häufigste Ursache: cuDNN fehlt → `pip install nvidia-cublas-cu12 nvidia-cudnn-cu12`.
 

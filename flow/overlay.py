@@ -28,6 +28,8 @@ class Overlay:
         self._dot.pack(side="left", padx=(14, 6), pady=6)
         self._label = tk.Label(self.win, text="", bg=BG, fg=FG, font=("Segoe UI", 11))
         self._label.pack(side="left", padx=(0, 14), pady=6)
+        self._vu = tk.Canvas(self.win, width=64, height=16, bg=BG, highlightthickness=0)
+        self._vu_display = 0.0
         self._hide_job = None
         self.win.withdraw()
 
@@ -37,6 +39,12 @@ class Overlay:
             self._hide_job = None
         self._dot.configure(fg=COLORS.get(kind, COLORS["info"]))
         self._label.configure(text=text)
+        if kind == "record":
+            self._vu_display = 0.0
+            self._draw_vu()
+            self._vu.pack(side="left", padx=(0, 14), pady=6, before=self._label)
+        else:
+            self._vu.pack_forget()
         self.win.update_idletasks()
         w = self.win.winfo_reqwidth()
         h = self.win.winfo_reqheight()
@@ -45,6 +53,29 @@ class Overlay:
         self.win.geometry(f"{w}x{h}+{(sw - w) // 2}+{sh - h - 80}")
         self.win.deiconify()
         self.win.lift()
+
+    def set_level(self, rms):
+        """VU-Meter füttern (RMS 0..1); logarithmisch angehoben, mit Abklingen."""
+        target = min(1.0, (rms * 12.0) ** 0.6) if rms > 0 else 0.0
+        self._vu_display = max(target, self._vu_display * 0.75)
+        self._draw_vu()
+
+    def _draw_vu(self):
+        c = self._vu
+        c.delete("all")
+        n = 10
+        lit = round(self._vu_display * n)
+        for i in range(n):
+            if i >= lit:
+                color = "#3a3a3a"
+            elif i >= 8:
+                color = "#e53935"
+            elif i >= 6:
+                color = "#fb8c00"
+            else:
+                color = "#43a047"
+            x = 2 + i * 6
+            c.create_rectangle(x, 4, x + 4, 12, fill=color, width=0)
 
     def flash(self, text, kind="ok", ms=1500):
         self.show(text, kind)

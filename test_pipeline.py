@@ -15,6 +15,7 @@ import numpy as np
 
 from flow import hard_exit
 from flow.config import load_config
+from flow.recorder import resample
 from flow.transcriber import Transcriber
 
 SENTENCE = "Dies ist ein Test der lokalen Diktierfunktion. Der Text erscheint direkt am Cursor."
@@ -44,15 +45,6 @@ def wav_to_float(path):
         if w.getnchannels() > 1:
             data = data.reshape(-1, w.getnchannels()).mean(axis=1)
     return data.astype(np.float32) / 32768.0, rate
-
-
-def resample(audio, src_rate, dst_rate):
-    if src_rate == dst_rate:
-        return audio
-    n_dst = int(len(audio) * dst_rate / src_rate)
-    x_src = np.linspace(0.0, 1.0, len(audio), endpoint=False)
-    x_dst = np.linspace(0.0, 1.0, n_dst, endpoint=False)
-    return np.interp(x_dst, x_src, audio).astype(np.float32)
 
 
 def finish(code):

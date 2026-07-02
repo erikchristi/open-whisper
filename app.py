@@ -110,6 +110,14 @@ class App:
         self.tray.set_state("recording")
         hint = "loslassen zum Stoppen" if self.record_source == "ptt" else f"{self.cfg['hotkey_toggle'].upper()} zum Stoppen"
         self.overlay.show(f"Aufnahme … ({hint})", "record")
+        self._vu_tick()
+
+    def _vu_tick(self):
+        """Aktualisiert das VU-Meter, solange aufgenommen wird (läuft im Tk-Thread)."""
+        if self.state != "recording":
+            return
+        self.overlay.set_level(self.recorder.level)
+        self.root.after(80, self._vu_tick)
 
     def _stop_and_transcribe(self):
         if self.state != "recording":
@@ -168,13 +176,15 @@ class App:
     def run(self):
         self.hotkeys.register()
         self.tray.start()
-        self.transcriber.load_async()
+        # Mikrofon vor dem Modell-Load öffnen: die Liveness-Probe braucht freie
+        # Callbacks und würde neben der CUDA-Initialisierung fälschlich leer ausgehen
         try:
             self.recorder.open()
             self.overlay.flash("Lokales Diktat startet – Modell lädt …", "info", 2500)
         except Exception as exc:
             log.exception("Mikrofon-Stream konnte nicht geöffnet werden")
             self.overlay.flash(f"Mikrofon-Fehler: {exc}", "error", 4000)
+        self.transcriber.load_async()
         self._poll_queue()
         self.root.mainloop()
 
