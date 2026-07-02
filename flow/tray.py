@@ -23,12 +23,9 @@ def _make_image(color):
 
 
 class Tray:
-    def __init__(self, on_quit, get_status, list_mics, get_mic, set_mic):
+    def __init__(self, on_quit, get_status):
         self._on_quit = on_quit
         self._get_status = get_status
-        self._list_mics = list_mics
-        self._get_mic = get_mic
-        self._set_mic = set_mic
         self.icon = pystray.Icon(
             "lokal_diktat",
             icon=_make_image(STATE_COLORS["loading"]),
@@ -36,27 +33,9 @@ class Tray:
             menu=pystray.Menu(
                 pystray.MenuItem(lambda item: self._get_status(), None, enabled=False),
                 pystray.Menu.SEPARATOR,
-                pystray.MenuItem("Mikrofon", pystray.Menu(self._mic_items)),
-                pystray.Menu.SEPARATOR,
                 pystray.MenuItem("Beenden", self._quit),
             ),
         )
-
-    def _mic_items(self):
-        """Untermenü-Einträge; wird von pystray bei jedem Öffnen neu abgefragt."""
-        yield pystray.MenuItem(
-            "Automatisch (empfohlen)",
-            lambda icon, item: self._set_mic(None),
-            checked=lambda item: self._get_mic() is None,
-            radio=True,
-        )
-        for name in self._list_mics():
-            yield pystray.MenuItem(
-                name,
-                (lambda n: lambda icon, item: self._set_mic(n))(name),
-                checked=(lambda n: lambda item: self._get_mic() == n)(name),
-                radio=True,
-            )
 
     def start(self):
         self.icon.run_detached()

@@ -12,11 +12,11 @@ import tkinter as tk
 from pathlib import Path
 
 from flow import hard_exit
-from flow.config import load_config, save_config
+from flow.config import load_config
 from flow.hotkey import HotkeyManager
 from flow.injector import paste_text
 from flow.overlay import Overlay
-from flow.recorder import Recorder, list_input_devices
+from flow.recorder import Recorder
 from flow.transcriber import Transcriber
 from flow.tray import Tray
 
@@ -56,13 +56,7 @@ class App:
             on_ptt_up=lambda: self.ui(self._ptt_up),
             on_toggle=lambda: self.ui(self._toggle),
         )
-        self.tray = Tray(
-            on_quit=lambda: self.ui(self.quit),
-            get_status=lambda: self.status_text,
-            list_mics=list_input_devices,
-            get_mic=lambda: self.cfg["input_device"],
-            set_mic=lambda device: self.ui(lambda: self._set_microphone(device)),
-        )
+        self.tray = Tray(on_quit=lambda: self.ui(self.quit), get_status=lambda: self.status_text)
 
     # ---- Threading: alle Zustandsänderungen laufen über die Queue im Tk-Hauptthread ----
 
@@ -84,7 +78,7 @@ class App:
     # ---- Zustandsmaschine ----
 
     def _ptt_down(self):
-        if self.state in ("transcribing", "switching"):
+        if self.state == "transcribing":
             self.overlay.flash("Noch beschäftigt – gleich nochmal drücken", "busy", 1200)
             return
         if self.state != "idle":
@@ -99,7 +93,7 @@ class App:
     def _toggle(self):
         if self.state == "recording":
             self._stop_and_transcribe()
-        elif self.state in ("transcribing", "switching"):
+        elif self.state == "transcribing":
             self.overlay.flash("Noch beschäftigt – gleich nochmal drücken", "busy", 1200)
         elif self.state == "idle":
             self.record_source = "toggle"
@@ -160,36 +154,6 @@ class App:
             self.overlay.flash("Eingefügt", "ok", 1000)
         else:
             self.overlay.flash("Nichts erkannt", "info", 1500)
-
-    def _set_microphone(self, device):
-        """Mikrofon wechseln (None = automatisch, sonst Gerätename); persistiert die Wahl."""
-        if self.state != "idle":
-            self.overlay.flash("Wechsel während Aufnahme nicht möglich", "info", 1800)
-            return
-        if device == self.cfg["input_device"]:
-            return
-        self.cfg["input_device"] = device
-        try:
-            save_config(self.cfg)
-        except OSError:
-            log.exception("config.json konnte nicht gespeichert werden")
-        self.state = "switching"
-        self.overlay.show_busy("Wechsle Mikrofon")
-
-        def worker():
-            try:
-                self.recorder.set_device(device)
-                label = self.recorder.device_label
-                self.ui(lambda: self._finish_switch(f"Mikrofon: {label}", "ok"))
-            except Exception as exc:
-                log.exception("Mikrofonwechsel fehlgeschlagen")
-                self.ui(lambda: self._finish_switch(f"Mikrofon-Fehler: {exc}", "error"))
-
-        threading.Thread(target=worker, daemon=True).start()
-
-    def _finish_switch(self, message, kind):
-        self.state = "idle"
-        self.overlay.flash(message, kind, 3000 if kind == "error" else 2200)
 
     def _set_model_status(self, text):
         self.status_text = text

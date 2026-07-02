@@ -20,20 +20,6 @@ PROBE_TIMEOUT = 1.0  # s: Wartezeit auf den ersten Callback nach dem Öffnen
 DEAD_AFTER = 1.5     # s: ohne Callback gilt ein "aktiver" Stream als tot
 
 
-def list_input_devices():
-    """Eindeutige Eingabegeräte-Namen, bevorzugt WASAPI — deckt sich mit den
-    Windows-Soundeinstellungen und vermeidet die MME/DirectSound-Duplikate."""
-    apis = sd.query_hostapis()
-    wasapi, fallback = [], []
-    for d in sd.query_devices():
-        if d["max_input_channels"] <= 0:
-            continue
-        target = wasapi if "WASAPI" in apis[d["hostapi"]]["name"] else fallback
-        if d["name"] not in target:
-            target.append(d["name"])
-    return wasapi or fallback
-
-
 def resample(audio, src_rate, dst_rate):
     """Lineares Resampling — für Spracherkennung ausreichend."""
     if src_rate == dst_rate or len(audio) == 0:
@@ -96,12 +82,9 @@ class Recorder:
 
         cands = []
         if self.input_device is not None:
-            try:
-                idx = self._resolve_device(self.input_device)
-                rate, ch = native(idx)
-                cands.append((idx, rate, ch, "konfiguriertes Gerät"))
-            except Exception as exc:
-                log.warning("Konfiguriertes Mikrofon nicht nutzbar (%s) – nutze Automatik", exc)
+            rate, ch = native(self.input_device)
+            cands.append((self.input_device, rate, ch, "konfiguriertes Gerät"))
+            return cands
         # WASAPI-Standardeingang zuerst — zuverlässigste Host-API auf modernem Windows
         for api in sd.query_hostapis():
             if "WASAPI" in api["name"] and api["default_input_device"] >= 0:
@@ -115,28 +98,6 @@ class Recorder:
             cands.append((default_in, rate, ch, "System-Standard"))
             cands.append((default_in, self.sample_rate, ch, "System-Standard (Zielrate)"))
         return cands
-
-    @staticmethod
-    def _resolve_device(wanted):
-        """Löst einen Gerätenamen zum Index auf, bevorzugt WASAPI; Indizes/None
-        werden unverändert durchgereicht."""
-        if not isinstance(wanted, str):
-            return wanted
-        apis = sd.query_hostapis()
-        matches = [d for d in sd.query_devices()
-                   if d["max_input_channels"] > 0 and wanted.lower() in d["name"].lower()]
-        if not matches:
-            raise ValueError(f"Mikrofon '{wanted}' nicht gefunden")
-        for d in matches:
-            if "WASAPI" in apis[d["hostapi"]]["name"]:
-                return d["index"]
-        return matches[0]["index"]
-
-    def set_device(self, device):
-        """Wechselt das Aufnahmegerät (None = automatisch) und öffnet den Stream neu."""
-        self.input_device = device
-        self.close()
-        self.open()
 
     def open(self):
         """Öffnet den dauerhaften Input-Stream; probiert Kandidaten durch, bis einer
