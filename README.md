@@ -93,3 +93,7 @@ python test_recorder.py     (Pre-Roll, Ringpuffer und Zeitlimit des Recorders)
 - Keine LLM-Nachbearbeitung (Füllwörter bleiben, wie gesprochen)
 - Kein Autostart mit Windows (bei Bedarf: Verknüpfung zu `start_diktat.bat` in
   `shell:startup` legen)
+
+## Lizenz
+
+Lizenziert unter der [Apache-Lizenz 2.0](LICENSE).
