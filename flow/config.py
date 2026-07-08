@@ -25,6 +25,7 @@ DEFAULTS = {
     "pre_roll_seconds": 0.4,
     "beam_size": 5,
     "initial_prompt": "",
+    "shortcuts_prompted": False,
 }
 
 
@@ -42,3 +43,14 @@ def load_config(path=None):
         except (json.JSONDecodeError, OSError) as exc:
             log.error("config.json konnte nicht gelesen werden (%s) – nutze Defaults.", exc)
     return cfg
+
+
+def save_config(cfg, path=None):
+    """Schreibt die bekannten Optionen nach config.json (unbekannte Keys werden verworfen)."""
+    path = Path(path) if path else CONFIG_PATH
+    data = {k: cfg[k] for k in DEFAULTS if k in cfg}
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+    except OSError as exc:
+        log.error("config.json konnte nicht geschrieben werden (%s).", exc)

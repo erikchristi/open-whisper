@@ -11,8 +11,8 @@ import threading
 import tkinter as tk
 from pathlib import Path
 
-from flow import hard_exit
-from flow.config import load_config
+from flow import hard_exit, shortcuts
+from flow.config import load_config, save_config
 from flow.hotkey import HotkeyManager
 from flow.injector import paste_text
 from flow.overlay import Overlay
@@ -170,6 +170,26 @@ class App:
         else:
             self.tray.set_state("loading")
 
+    # ---- Verknüpfungen beim ersten Start ----
+
+    def _ensure_shortcuts(self):
+        """Legt beim allerersten Start still Desktop- und Startmenü-Verknüpfung an.
+
+        Ohne Nachfrage: einmalig anlegen, in config.json merken (shortcuts_prompted),
+        danach nichts mehr tun. Läuft im Tk-Hauptthread (per root.after eingeplant).
+        """
+        if self.cfg.get("shortcuts_prompted"):
+            return
+        created = []
+        if shortcuts.create_desktop_shortcut():
+            created.append("Desktop")
+        if shortcuts.create_startmenu_shortcut():
+            created.append("Startmenü")
+        self.cfg["shortcuts_prompted"] = True
+        save_config(self.cfg)
+        if created:
+            self.overlay.flash("Verknüpfung angelegt: " + ", ".join(created), "ok", 2500)
+
     # ---- Lebenszyklus ----
 
     def run(self):
@@ -185,6 +205,8 @@ class App:
             self.overlay.flash(f"Mikrofon-Fehler: {exc}", "error", 4000)
         self.transcriber.load_async()
         self._poll_queue()
+        # Verknüpfungen still anlegen, leicht verzögert (nach der Start-Overlay-Meldung)
+        self.root.after(800, self._ensure_shortcuts)
         self.root.mainloop()
 
     def quit(self):
