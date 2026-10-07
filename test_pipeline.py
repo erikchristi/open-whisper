@@ -1,6 +1,6 @@
 """End-to-End-Smoke-Test ohne Mikrofon.
 
-Erzeugt per Windows-TTS (SAPI) ein deutsches Test-WAV, lädt das Whisper-Modell
+Erzeugt per Windows-TTS (SAPI) ein deutsches Test-WAV, lädt das Parakeet-Modell
 über denselben Transcriber wie die App (inkl. CUDA→CPU-Fallback) und prüft,
 ob die Kernwörter im Transkript auftauchen.
 """
@@ -62,7 +62,7 @@ def main():
     audio = resample(audio, rate, cfg["sample_rate"])
     print(f"    {len(audio) / cfg['sample_rate']:.1f} s Audio ({rate} Hz -> {cfg['sample_rate']} Hz)")
 
-    print("2/3 Lade Whisper-Modell (Erstlauf lädt das Modell von Hugging Face herunter) …")
+    print("2/3 Lade Parakeet-Modell (Erstlauf lädt das Modell von Hugging Face herunter) …")
     t = Transcriber(cfg, on_status=lambda s: print(f"    {s}"))
     t.load_async()
     t.ready.wait()

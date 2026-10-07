@@ -1,4 +1,4 @@
-faster-whisper>=1.2.1
+onnx-asr[cpu,hub]>=0.12.0   # GPU: stattdessen onnx-asr[gpu,hub] (siehe README)
 sounddevice>=0.5.0
 keyboard>=0.13.5
 pyperclip>=1.9.0

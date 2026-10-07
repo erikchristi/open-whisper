@@ -1,7 +1,7 @@
 """Lokales Diktat – Wispr-Flow-artige Diktier-App, komplett offline.
 
 F8 halten (Push-to-talk) oder F9 drücken (Toggle): Sprache aufnehmen, lokal mit
-Whisper transkribieren, Text an der Cursorposition der aktiven App einfügen.
+Parakeet transkribieren, Text an der Cursorposition der aktiven App einfügen.
 """
 
 import logging

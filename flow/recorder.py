@@ -1,6 +1,6 @@
 """Mikrofonaufnahme: dauerhaft offener Stream mit Pre-Roll-Ringpuffer.
 
-Geräte werden mit ihrer nativen Abtastrate geöffnet (Resampling auf die Whisper-Rate
+Geräte werden mit ihrer nativen Abtastrate geöffnet (Resampling auf die Modell-Rate
 passiert in stop()), bevorzugt über WASAPI. Nach dem Öffnen prüft eine Liveness-Probe,
 ob wirklich Daten fließen — auf manchen Systemen (z. B. MME bei erzwungenen 16 kHz)
 bleibt ein Stream sonst „aktiv“, liefert aber nie einen Callback.
@@ -40,7 +40,7 @@ class Recorder:
 
     def __init__(self, sample_rate=16000, input_device=None, max_seconds=120,
                  pre_roll_seconds=0.4, on_limit=None):
-        self.sample_rate = sample_rate          # Zielrate (Whisper: 16 kHz)
+        self.sample_rate = sample_rate          # Zielrate (Parakeet: 16 kHz)
         self.capture_rate = sample_rate         # tatsächliche Geräterate, in open() gesetzt
         self.input_device = input_device
         self.max_seconds = max_seconds

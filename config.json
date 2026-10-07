@@ -1,17 +1,14 @@
 {
   "hotkey_ptt": "f8",
   "hotkey_toggle": "f9",
-  "language": "de",
   "device": "auto",
-  "model_gpu": "large-v3-turbo",
-  "model_cpu": "small",
-  "compute_type_gpu": "int8_float16",
-  "compute_type_cpu": "int8",
+  "model": "nemo-parakeet-tdt-0.6b-v3",
+  "quantization_gpu": null,
+  "quantization_cpu": "int8",
   "sample_rate": 16000,
   "input_device": null,
   "paste_method": "clipboard",
   "max_seconds": 120,
   "pre_roll_seconds": 0.4,
-  "beam_size": 5,
-  "initial_prompt": ""
+  "shortcuts_prompted": true
 }

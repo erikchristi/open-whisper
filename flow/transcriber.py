@@ -1,4 +1,4 @@
-"""faster-whisper-Wrapper: Hintergrund-Load, CUDA→CPU-Fallback, VAD-Filter."""
+"""Parakeet-Wrapper (onnx-asr): Hintergrund-Load, CUDA→CPU-Fallback."""
 
 import logging
 import os
@@ -8,32 +8,62 @@ import numpy as np
 
 log = logging.getLogger(__name__)
 
+SAMPLE_RATE = 16000
+MIN_SECONDS = 0.3  # kürzere Aufnahmen sind versehentliche Tastendrücke
+
 
 def _add_cuda_dll_dirs():
-    """DLL-Ordner der pip-Pakete nvidia-cublas-cu12 / nvidia-cudnn-cu12 registrieren.
+    """DLL-Ordner der pip-Pakete von onnxruntime-gpu[cuda,cudnn] registrieren.
 
-    ctranslate2 findet cuBLAS/cuDNN sonst nur über PATH; die pip-Wheels legen die
-    DLLs unter site-packages/nvidia/<paket>/bin ab.
+    onnxruntime-gpu braucht CUDA 13 (Runtime, cuBLAS, cuFFT, cuRAND, nvrtc, nvJitLink) und
+    cuDNN 9. Die pip-Wheels legen die DLLs je nach Paket unter site-packages/nvidia/cu13/bin/x86_64
+    oder nvidia/cudnn/bin ab – deshalb werden alle Ordner unter nvidia/ mit DLLs eingesammelt.
+    Fehlt eine transitive Abhängigkeit, meldet Windows nur irreführend "Modul nicht gefunden".
+
+    os.add_dll_directory() allein reicht nicht immer: manche DLLs werden erst zur Laufzeit
+    über die klassische Windows-DLL-Suche (u.a. PATH) nachgeladen. Deshalb zusätzlich in
+    PATH voranstellen.
     """
     import importlib.util
 
-    for pkg in ("nvidia.cublas", "nvidia.cudnn"):
-        try:
-            spec = importlib.util.find_spec(pkg)
-        except (ImportError, ValueError):
-            spec = None
-        if not spec or not spec.submodule_search_locations:
-            continue
-        for loc in spec.submodule_search_locations:
-            for sub in ("bin", "lib"):
-                p = os.path.join(loc, sub)
-                if os.path.isdir(p):
-                    os.add_dll_directory(p)
-                    log.debug("DLL-Pfad registriert: %s", p)
+    try:
+        spec = importlib.util.find_spec("nvidia")
+    except (ImportError, ValueError):
+        spec = None
+    if not spec or not spec.submodule_search_locations:
+        return
+
+    dirs = []
+    for root in spec.submodule_search_locations:
+        for path, _subdirs, files in os.walk(root):
+            if any(f.lower().endswith(".dll") for f in files):
+                os.add_dll_directory(path)
+                dirs.append(path)
+                log.debug("DLL-Pfad registriert: %s", path)
+
+    if dirs:
+        os.environ["PATH"] = os.pathsep.join(dirs) + os.pathsep + os.environ["PATH"]
+
+
+def _sessions(obj, depth=4, seen=None):
+    """Sammelt alle onnxruntime-Sessions, die im onnx-asr-Modellobjekt stecken."""
+    import onnxruntime as ort
+
+    seen = seen if seen is not None else set()
+    if depth < 0 or id(obj) in seen:
+        return []
+    seen.add(id(obj))
+    if isinstance(obj, ort.InferenceSession):
+        return [obj]
+    found = []
+    children = obj.values() if isinstance(obj, dict) else getattr(obj, "__dict__", {}).values()
+    for child in children:
+        found += _sessions(child, depth - 1, seen)
+    return found
 
 
 class Transcriber:
-    """Lädt das Whisper-Modell asynchron; transcribe() wartet bis es bereit ist."""
+    """Lädt das Parakeet-Modell asynchron; transcribe() wartet bis es bereit ist."""
 
     def __init__(self, cfg, on_status=None):
         self.cfg = cfg
@@ -48,25 +78,36 @@ class Transcriber:
         threading.Thread(target=self._load, name="model-load", daemon=True).start()
 
     def _load(self):
+        import onnx_asr
+        import onnxruntime as ort
+
+        ort.set_default_logger_severity(3)  # nur Fehler; Warnungen gehen sonst ungefiltert auf stderr
         want = self.cfg["device"]
         candidates = []
         if want in ("auto", "cuda"):
-            candidates.append(("cuda", self.cfg["model_gpu"], self.cfg["compute_type_gpu"]))
+            if "CUDAExecutionProvider" in ort.get_available_providers():
+                candidates.append(("cuda", "CUDAExecutionProvider", self.cfg["quantization_gpu"]))
+            else:
+                log.info("onnxruntime ohne CUDA-Unterstützung – überspringe GPU.")
         if want in ("auto", "cpu"):
-            candidates.append(("cpu", self.cfg["model_cpu"], self.cfg["compute_type_cpu"]))
+            candidates.append(("cpu", "CPUExecutionProvider", self.cfg["quantization_cpu"]))
 
-        from faster_whisper import WhisperModel
-
-        for device, model_name, compute_type in candidates:
+        model_name = self.cfg["model"]
+        for device, provider, quantization in candidates:
             try:
                 self.on_status(f"Lade Modell {model_name} ({device}) …")
-                log.info("Lade Modell %s auf %s (%s)", model_name, device, compute_type)
+                log.info("Lade Modell %s auf %s (Quantisierung: %s)", model_name, device, quantization)
                 if device == "cuda":
                     _add_cuda_dll_dirs()
-                model = WhisperModel(model_name, device=device, compute_type=compute_type)
+                    ort.preload_dlls()
+                model = onnx_asr.load_model(model_name, quantization=quantization, providers=[provider])
+                # onnxruntime fällt still auf die CPU zurück, wenn CUDA-DLLs fehlen
+                if device == "cuda" and not any(
+                    provider in s.get_providers() for s in _sessions(model)
+                ):
+                    raise RuntimeError("CUDA-Provider nicht aktiv (CUDA 13 / cuDNN 9 fehlen?)")
                 # Warmup deckt CUDA-Fehler auf, die erst bei der ersten Inferenz auftreten
-                warmup = np.zeros(int(0.5 * 16000), dtype=np.float32)
-                list(model.transcribe(warmup, language=self.cfg["language"])[0])
+                model.recognize(np.zeros(int(0.5 * SAMPLE_RATE), dtype=np.float32), sample_rate=SAMPLE_RATE)
                 self.model = model
                 self.device = device
                 self.model_name = model_name
@@ -88,13 +129,8 @@ class Transcriber:
         self.ready.wait()
         if self.model is None:
             raise RuntimeError(f"Modell nicht geladen: {self.load_error}")
-        segments, _info = self.model.transcribe(
-            audio,
-            language=self.cfg["language"],
-            beam_size=self.cfg["beam_size"],
-            vad_filter=True,
-            initial_prompt=self.cfg["initial_prompt"] or None,
-        )
-        text = " ".join(seg.text.strip() for seg in segments).strip()
+        if len(audio) < MIN_SECONDS * SAMPLE_RATE:
+            return ""
+        text = self.model.recognize(audio.astype(np.float32, copy=False), sample_rate=SAMPLE_RATE).strip()
         log.info("Transkribiert: %d Zeichen", len(text))
         return text
