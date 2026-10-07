@@ -23,9 +23,10 @@ keine Daten verlassen deinen Rechner.
 Getestet wurde die App unter Windows 11 mit Python 3.14 und einer NVIDIA RTX 2060. Andere
 Konfigurationen funktionieren ebenfalls, sofern die obigen Punkte erfüllt sind.
 
-## Schnellstart in fünf Schritten
+## Schnellstart in vier Schritten
 
-Wenn du wenig Erfahrung mit Python hast, folge einfach dieser Reihenfolge.
+Wenn du wenig Erfahrung mit Python hast, folge einfach dieser Reihenfolge. Alle Pakete landen in
+einer eigenen virtuellen Umgebung (`.venv` im Projektordner), dein System-Python bleibt unberührt.
 
 **1. Python installieren.** Lade Python von [python.org](https://www.python.org/downloads/) und
 setze bei der Installation das Häkchen bei **"Add Python to PATH"**. Prüfe danach in der
@@ -39,33 +40,27 @@ python --version
 es mit Git:
 
 ```
-git clone https://github.com/erikchristi/lokal-diktat.git
-cd lokal-diktat
+git clone https://github.com/erikchristi/open-whisper.git
+cd open-whisper
 ```
 
-**3. Abhängigkeiten installieren.** Öffne PowerShell im Projektordner und führe aus:
+Lege den Ordner möglichst an einen kurzen Pfad (zum Beispiel `C:\Tools\open-whisper`). Sehr lange
+Pfade stoßen an die 260-Zeichen-Grenze von Windows und lassen die Installation scheitern.
+
+**3. Einrichten.** Doppelklick auf `setup.bat`. Das Skript legt die `.venv` an und installiert alle
+Abhängigkeiten. Findet es eine NVIDIA-Grafikkarte (ab RTX 20xx / Turing, aktueller Treiber nötig),
+installiert es automatisch die GPU-Variante samt CUDA 13 und cuDNN 9 (einige GB, kein
+CUDA-Toolkit nötig). Ohne NVIDIA-Karte läuft alles auf der CPU.
+
+- `setup.bat cpu` erzwingt die CPU-Variante, auch wenn eine GPU vorhanden ist.
+- `setup.bat` erneut ausführen aktualisiert oder repariert die Installation. Beende die App vorher
+  über das Tray-Icon, sonst sind ihre Dateien gesperrt.
+
+**4. App starten.** Doppelklick auf `start_diktat.bat` (startet ohne Konsolenfenster) oder mit
+sichtbarer Konsole in PowerShell:
 
 ```
-pip install -r requirements.txt
-```
-
-**4. (Optional) GPU-Unterstützung.** Hast du eine NVIDIA-Grafikkarte (ab RTX 20xx / Turing),
-ersetze die CPU-Variante von onnxruntime durch die GPU-Variante samt CUDA 13 und cuDNN 9 aus
-pip-Paketen (kein CUDA-Toolkit nötig, aber ein aktueller NVIDIA-Treiber):
-
-```
-pip uninstall -y onnxruntime
-pip install "onnxruntime-gpu[cuda,cudnn]"
-```
-
-Wichtig: Führe danach `pip install -r requirements.txt` nicht erneut aus, sonst kommt die
-CPU-Variante zurück. Falls doch, wiederhole die beiden Befehle oben.
-
-**5. App starten.** Doppelklick auf `start_diktat.bat` (startet ohne Konsolenfenster) oder in
-PowerShell:
-
-```
-python app.py
+.venv\Scripts\python.exe app.py
 ```
 
 Beim allerersten Start lädt die App das Sprachmodell herunter (Parakeet in voller Genauigkeit
@@ -102,7 +97,7 @@ du musst nichts ändern, um loszulegen.
 | `device` | `"auto"` | `auto` (nutzt GPU, sonst CPU), `cuda` oder `cpu` |
 | `model` | `"nemo-parakeet-tdt-0.6b-v3"` | Modellname für onnx-asr (die Sprache wird automatisch erkannt) |
 | `quantization_gpu` / `quantization_cpu` | `null` / `"int8"` | Quantisierung je nach Gerät (`null` steht für volle Genauigkeit) |
-| `input_device` | `null` | Mikrofon-Index (`null` steht für Standardmikrofon; Liste anzeigen mit `python -m sounddevice`) |
+| `input_device` | `null` | Mikrofon-Index (`null` steht für Standardmikrofon; Liste anzeigen mit `.venv\Scripts\python.exe -m sounddevice`) |
 | `paste_method` | `"clipboard"` | `clipboard` (Strg+V, Zwischenablage wird danach wiederhergestellt) oder `type` (zeichenweise tippen) |
 | `max_seconds` | `120` | Maximale Aufnahmedauer in Sekunden, danach wird automatisch transkribiert |
 | `pre_roll_seconds` | `0.4` | Vorlauf aus dem Ringpuffer, der jeder Aufnahme vorangestellt wird |
@@ -110,8 +105,8 @@ du musst nichts ändern, um loszulegen.
 ## Tests ohne Mikrofon
 
 ```
-python test_pipeline.py     (TTS-Audio erzeugen, transkribieren, Ergebnis prüfen)
-python test_recorder.py     (Pre-Roll, Ringpuffer und Zeitlimit des Recorders)
+.venv\Scripts\python.exe test_pipeline.py     (TTS-Audio erzeugen, transkribieren, Ergebnis prüfen)
+.venv\Scripts\python.exe test_recorder.py     (Pre-Roll, Ringpuffer und Zeitlimit des Recorders)
 ```
 
 ## Fehlersuche
@@ -120,7 +115,7 @@ python test_recorder.py     (Pre-Roll, Ringpuffer und Zeitlimit des Recorders)
 - **Kein Text erscheint**: Manche Apps, die mit Administratorrechten laufen, empfangen keine
   Eingaben von normalen Prozessen. Starte die App in dem Fall ebenfalls über "Als Administrator
   ausführen".
-- **Falsches Mikrofon**: Mit `python -m sounddevice` bekommst du alle Geräte aufgelistet. Trage
+- **Falsches Mikrofon**: Mit `.venv\Scripts\python.exe -m sounddevice` bekommst du alle Geräte aufgelistet. Trage
   den passenden Index in `config.json` unter `input_device` ein. Ohne Angabe wählt die App
   automatisch den WASAPI-Standardeingang mit nativer Abtastrate und prüft, ob wirklich Daten
   fließen (in `app.log` erscheint dann "Mikrofon-Stream aktiv"). Schlägt das VU-Meter bei der
@@ -128,7 +123,9 @@ python test_recorder.py     (Pre-Roll, Ringpuffer und Zeitlimit des Recorders)
 - **GPU wird nicht genutzt**: Prüfe `app.log` auf die Zeile "Modell bereit". Steht dort `cpu`,
   zeigt die Zeile "Modell-Load auf cuda fehlgeschlagen" den Grund. Häufigste Ursachen: die
   CPU-Variante `onnxruntime` ist installiert, CUDA 13 oder cuDNN fehlen, oder der Grafiktreiber
-  ist zu alt. Abhilfe siehe Schritt 4 im Schnellstart.
+  ist zu alt. Abhilfe: Treiber aktualisieren, App beenden und `setup.bat` erneut ausführen.
+- **Installation bricht mit "No such file or directory" oder "Long Path" ab**: Der Projektpfad ist
+  zu lang. Verschiebe den Ordner an einen kürzeren Pfad, lösche `.venv` und starte `setup.bat` neu.
 
 ## Grenzen dieser Version
 
